@@ -268,23 +268,21 @@ def register_aiogram_handlers(dp: Dispatcher,
     dp.message.register(cmd_help, Command(commands=["help"]))
 
 async def start_bot(
-        bot_token,
-        threshold_pct,
-        windows: Dict[str, Deque[TradePoint]] = {},
-        token_subscribers: Dict[str, Set[int]] = defaultdict(set),
-        user_subscriptions: Dict[int, Set[str]] = defaultdict(set),
-        ws_subscribe_queue: asyncio.Queue = asyncio.Queue(),
-        stop_event = asyncio.Event(),
+    bot_token: str,
+    threshold_pct: float,
+    windows: Dict[str, Deque[TradePoint]],
+    token_subscribers: Dict[str, Set[int]],
+    user_subscriptions: Dict[int, Set[str]],
+    ws_subscribe_queue: asyncio.Queue,
+    stop_event: asyncio.Event
 ):
-    
     async with aiohttp.ClientSession() as session:
-        bot = Bot(token=bot_token) #, parse_mode="HTML")
+        bot = Bot(token=bot_token)
         dp = Dispatcher()
-
-        register_aiogram_handlers(dp, session, bot_token, windows, token_subscribers,
-                                  user_subscriptions, "https://api.hyperliquid.xyz/info",
-                                  4, 60 * 1000, ws_subscribe_queue)
-
+        register_aiogram_handlers(
+            dp, session, bot_token, windows, token_subscribers, user_subscriptions,
+            "https://api.hyperliquid.xyz/info", 4, 60 * 1000, ws_subscribe_queue
+        )
         async def start_aiogram():
             try:
                 await dp.start_polling(bot)
@@ -293,7 +291,6 @@ async def start_bot(
 
         aiogram_task = asyncio.create_task(start_aiogram())
 
-        # run websocket worker
         ws_task = asyncio.create_task(run_ws_worker(
             ws_url="wss://api.hyperliquid.xyz/ws",
             info_url="https://api.hyperliquid.xyz/info",
@@ -310,20 +307,32 @@ async def start_bot(
             stop_event=stop_event
         ))
 
-        print("[main] Bot running. Use /subscribe <TOKEN> in Telegram to subscribe.")
         try:
             await asyncio.gather(aiogram_task, ws_task)
-        except asyncio.CancelledError:
-            pass
         finally:
             stop_event.set()
             await bot.session.close()
 
+async def main(bot_token: str, threshold_pct: float):
+
+    windows: Dict[str, Deque[TradePoint]] = {}
+    token_subscribers: Dict[str, Set[int]] = defaultdict(set)
+    user_subscriptions: Dict[int, Set[str]] = defaultdict(set)
+
+    ws_subscribe_queue: asyncio.Queue = asyncio.Queue()   
+    stop_event: asyncio.Event = asyncio.Event()          
+
+    await start_bot(
+        bot_token, threshold_pct,
+        windows, token_subscribers, user_subscriptions,
+        ws_subscribe_queue, stop_event
+    )
+
 if __name__ == "__main__":
-    BOT_TOKEN='8055323488:AAEe5ZBr203KyMbKq7GF9HXlb-OejkpSvfk'
+    BT='8055323488:AAEe5ZBr203KyMbKq7GF9HXlb-OejkpSvfk'
     THRESHOLD_PCT=20.0
 
-    asyncio.run(start_bot(
-        bot_token=BOT_TOKEN,
+    asyncio.run(main(
+        bot_token=BT,
         threshold_pct=THRESHOLD_PCT
     ))
