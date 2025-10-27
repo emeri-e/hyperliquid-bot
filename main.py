@@ -392,7 +392,7 @@ async def main(bot_token: str, threshold_pct: float):
     )
 
 if __name__ == "__main__":
-    BT='8055323488:AAEe5ZBr203KyMbKq7GF9HXlb-OejkpSvfk'
+    BT='8419922031:AAGC-cD-cvbUG8bG9p1v3O5qu6Ena3tGBwg'
     THRESHOLD_PCT=20.0
 
     asyncio.run(main(
