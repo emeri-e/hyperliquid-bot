@@ -1,4 +1,5 @@
 import asyncio
+import difflib
 import json
 import time
 from collections import deque, defaultdict
@@ -276,20 +277,22 @@ def register_aiogram_handlers(dp: Dispatcher,
             available_tokens_cache["ts"] = now_ts
 
         if token not in tokens_list:
-            # token not found — give user helpful response and short list of available tokens
-            if tokens_list:
-                # show up to 20 tokens (avoid flooding the chat)
-                sample = ", ".join(tokens_list[:20])
-                more = ""
-                if len(tokens_list) > 20:
-                    more = f"\n\nThere are {len(tokens_list)} total symbols — use a symbol from the list above."
+            # Try to find similar tokens
+            suggestions = difflib.get_close_matches(token, tokens_list, n=5, cutoff=0.4)
+
+            if suggestions:
+                suggestion_text = ", ".join(suggestions)
                 await message.reply(
-                    f"❌ Token '{token}' not found on Hyperliquid.\n\nAvailable tokens (sample):\n{sample}{more}\n\nIf you believe the token exists, wait a minute then try again or send exact symbol."
+                    f"❌ Token '{token}' not found on Hyperliquid.\n"
+                    f"Did you mean: {suggestion_text} ?"
                 )
             else:
-                await message.reply("❌ Couldn't fetch available tokens from Hyperliquid right now — try again in a moment.")
+                # sample = ", ".join(tokens_list[:20])
+                # more = f"\n\nThere are {len(tokens_list)} total symbols — use one from the list above." if len(tokens_list) > 20 else ""
+                await message.reply(
+                    f"❌ Token '{token}' not found on Hyperliquid.\n\n"
+                )
             return
-
         # Token exists — proceed to subscribe
         user_subscriptions.setdefault(chat_id, set()).add(token)
         token_subscribers.setdefault(token, set()).add(chat_id)
