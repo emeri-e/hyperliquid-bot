@@ -239,11 +239,9 @@ def register_aiogram_handlers(dp: Dispatcher,
         except Exception:
             return []
 
-        # data may be dict { "BTC": "40000.0", "SOL": "120.0", ... } or list of dicts.
         if isinstance(data, dict):
             return list(data.keys())
         if isinstance(data, list):
-            # maybe list of {"coin": "BTC", ...}
             names = []
             for item in data:
                 if isinstance(item, dict):
@@ -263,7 +261,6 @@ def register_aiogram_handlers(dp: Dispatcher,
         token = parts[1].upper()
         chat_id = message.chat.id
 
-        # Check cache first (available_tokens_cache is a dict like {"tokens": [...], "ts": 12345})
         now_ts = time.time()
         cached = available_tokens_cache.get("tokens")
         cached_ts = available_tokens_cache.get("ts", 0)
@@ -272,12 +269,11 @@ def register_aiogram_handlers(dp: Dispatcher,
             tokens_list = cached
         else:
             tokens_list = await fetch_available_tokens(session, info_url)
-            # store in cache
+            # cache
             available_tokens_cache["tokens"] = tokens_list
             available_tokens_cache["ts"] = now_ts
 
         if token not in tokens_list:
-            # Try to find similar tokens
             suggestions = difflib.get_close_matches(token, tokens_list, n=5, cutoff=0.4)
 
             if suggestions:
@@ -293,32 +289,15 @@ def register_aiogram_handlers(dp: Dispatcher,
                     f"❌ Token '{token}' not found on Hyperliquid.\n\n"
                 )
             return
-        # Token exists — proceed to subscribe
+
         user_subscriptions.setdefault(chat_id, set()).add(token)
         token_subscribers.setdefault(token, set()).add(chat_id)
         windows.setdefault(token, deque())
 
-        # prepopulate and immediately request WS subscription
         await prepopulate_if_needed(session, info_url, windows, token, min_trades, gran_ms)
-        # push token onto the ws_subscribe_queue (repl_subscribe_loop will send subscribe to active ws)
         await ws_subscribe_queue.put(token)
 
         await message.reply(f"✅ Subscribed to {token}. You will receive alerts for it.")
-
-    # # subscribe
-    # async def cmd_subscribe(message: Message):
-    #     parts = message.text.split()
-    #     if len(parts) < 2:
-    #         await message.reply("Usage: /subscribe <TOKEN>")
-    #         return
-    #     token = parts[1].upper()
-    #     user_subscriptions.setdefault(message.chat.id, set()).add(token)
-    #     token_subscribers.setdefault(token, set()).add(message.chat.id)
-    #     windows.setdefault(token, deque())
-
-    #     await prepopulate_if_needed(session, info_url, windows, token, min_trades, gran_ms)
-    #     await ws_subscribe_queue.put(token)
-    #     await message.reply(f"Subscribed to {token}. You will receive alerts for it.")
 
     # unsubscribe
     async def cmd_unsubscribe(message: Message):
